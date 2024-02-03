@@ -19,6 +19,7 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/urfave/cli/v3"
+	"golang.org/x/exp/slices"
 )
 
 const name = "nostr-todo"
@@ -243,6 +244,24 @@ func doDone(ctx context.Context, cmd *cli.Command) error {
 	return todolist.Save(ctx, cfg)
 }
 
+func doDelete(ctx context.Context, cmd *cli.Command) error {
+	cfg := cmd.Root().Metadata["config"].(*Config)
+
+	var todolist TodoList
+	err := todolist.Load(ctx, cfg)
+	if err != nil {
+		return err
+	}
+
+	for _, arg := range cmd.Args().Slice() {
+		todolist = slices.DeleteFunc(todolist, func(todo Todo) bool {
+			return todo.ID == "" || todo.ID == arg
+		})
+	}
+
+	return todolist.Save(ctx, cfg)
+}
+
 func doVersion(ctx context.Context, cmd *cli.Command) error {
 	fmt.Println(version)
 	return nil
@@ -279,6 +298,12 @@ var commands = []*cli.Command{
 		Usage:     "done todo",
 		UsageText: "nostr-todo done [id...]",
 		Action:    doDone,
+	},
+	{
+		Name:      "delete",
+		Usage:     "delete todo",
+		UsageText: "nostr-todo delete [id...]",
+		Action:    doDelete,
 	},
 	{
 		Name:      "version",
