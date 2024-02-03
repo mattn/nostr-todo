@@ -96,6 +96,14 @@ type Todo struct {
 
 type TodoList []Todo
 
+func tagName(name string) string {
+	if name == "" {
+		return "nostr-todo"
+	}
+	return "nostr-todo-" + name
+
+}
+
 func (tl *TodoList) MarshalJSON() ([]byte, error) {
 	return json.Marshal(*tl)
 }
@@ -110,12 +118,12 @@ func (tl *TodoList) Sort() {
 	})
 }
 
-func (tl *TodoList) Load(ctx context.Context, cfg *Config) error {
+func (tl *TodoList) Load(ctx context.Context, cfg *Config, name string) error {
 	pool := nostr.NewSimplePool(ctx)
 	filter := nostr.Filter{
 		Kinds: []int{nostr.KindApplicationSpecificData},
 		Tags: nostr.TagMap{
-			"d": []string{"nostr-todo", "hello"},
+			"d": []string{tagName(name)},
 		},
 	}
 	ev := pool.QuerySingle(ctx, cfg.Relays, filter)
@@ -126,7 +134,7 @@ func (tl *TodoList) Load(ctx context.Context, cfg *Config) error {
 	return tl.UnmarshalJSON([]byte(ev.Content))
 }
 
-func (tl *TodoList) Save(ctx context.Context, cfg *Config) error {
+func (tl *TodoList) Save(ctx context.Context, cfg *Config, name string) error {
 	b, err := tl.MarshalJSON()
 	if err != nil {
 		return err
@@ -148,7 +156,7 @@ func (tl *TodoList) Save(ctx context.Context, cfg *Config) error {
 		CreatedAt: nostr.Now(),
 		PubKey:    pub,
 		Tags: nostr.Tags{
-			{"d", "nostr-todo", "default"},
+			{"d", tagName(name)},
 		},
 	}
 
@@ -180,9 +188,10 @@ func (tl *TodoList) Save(ctx context.Context, cfg *Config) error {
 
 func doNew(ctx context.Context, cmd *cli.Command) error {
 	cfg := cmd.Root().Metadata["config"].(*Config)
+	name := cmd.String("name")
 
 	var todolist TodoList
-	err := todolist.Load(ctx, cfg)
+	err := todolist.Load(ctx, cfg, name)
 	if err != nil {
 		return err
 	}
@@ -194,15 +203,16 @@ func doNew(ctx context.Context, cmd *cli.Command) error {
 	})
 	todolist.Sort()
 
-	return todolist.Save(ctx, cfg)
+	return todolist.Save(ctx, cfg, name)
 }
 
 func doList(ctx context.Context, cmd *cli.Command) error {
 	cfg := cmd.Root().Metadata["config"].(*Config)
+	name := cmd.String("name")
 	showAll := cmd.Bool("a")
 
 	var todolist TodoList
-	err := todolist.Load(ctx, cfg)
+	err := todolist.Load(ctx, cfg, name)
 	if err != nil {
 		return err
 	}
@@ -226,9 +236,10 @@ func doList(ctx context.Context, cmd *cli.Command) error {
 
 func doDone(ctx context.Context, cmd *cli.Command) error {
 	cfg := cmd.Root().Metadata["config"].(*Config)
+	name := cmd.String("name")
 
 	var todolist TodoList
-	err := todolist.Load(ctx, cfg)
+	err := todolist.Load(ctx, cfg, name)
 	if err != nil {
 		return err
 	}
@@ -241,14 +252,15 @@ func doDone(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	return todolist.Save(ctx, cfg)
+	return todolist.Save(ctx, cfg, name)
 }
 
 func doDelete(ctx context.Context, cmd *cli.Command) error {
 	cfg := cmd.Root().Metadata["config"].(*Config)
+	name := cmd.String("name")
 
 	var todolist TodoList
-	err := todolist.Load(ctx, cfg)
+	err := todolist.Load(ctx, cfg, name)
 	if err != nil {
 		return err
 	}
@@ -259,7 +271,7 @@ func doDelete(ctx context.Context, cmd *cli.Command) error {
 		})
 	}
 
-	return todolist.Save(ctx, cfg)
+	return todolist.Save(ctx, cfg, name)
 }
 
 func doVersion(ctx context.Context, cmd *cli.Command) error {
@@ -273,6 +285,11 @@ var commands = []*cli.Command{
 		Usage:     "list todos",
 		UsageText: "nostr-todo list",
 		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "name",
+				Aliases: []string{"n"},
+				Value:   "",
+			},
 			&cli.BoolFlag{
 				Name:  "a",
 				Usage: "list all todos",
@@ -286,6 +303,11 @@ var commands = []*cli.Command{
 		UsageText: "nostr-todo new",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
+				Name:    "name",
+				Aliases: []string{"n"},
+				Value:   "default",
+			},
+			&cli.StringFlag{
 				Name:     "content",
 				Usage:    "content",
 				Required: true,
@@ -297,13 +319,27 @@ var commands = []*cli.Command{
 		Name:      "done",
 		Usage:     "done todo",
 		UsageText: "nostr-todo done [id...]",
-		Action:    doDone,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "name",
+				Aliases: []string{"n"},
+				Value:   "default",
+			},
+		},
+		Action: doDone,
 	},
 	{
 		Name:      "delete",
 		Usage:     "delete todo",
 		UsageText: "nostr-todo delete [id...]",
-		Action:    doDelete,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "name",
+				Aliases: []string{"n"},
+				Value:   "default",
+			},
+		},
+		Action: doDelete,
 	},
 	{
 		Name:      "version",
