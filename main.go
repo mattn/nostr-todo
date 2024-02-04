@@ -189,6 +189,9 @@ func (tl *TodoList) Save(ctx context.Context, cfg *Config, name string) error {
 }
 
 func doNew(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Present() {
+		return cli.ShowSubcommandHelp(cmd)
+	}
 	cfg := cmd.Root().Metadata["config"].(*Config)
 	name := cmd.String("name")
 
@@ -209,6 +212,9 @@ func doNew(ctx context.Context, cmd *cli.Command) error {
 }
 
 func doList(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Present() {
+		return cli.ShowSubcommandHelp(cmd)
+	}
 	cfg := cmd.Root().Metadata["config"].(*Config)
 	name := cmd.String("name")
 	showAll := cmd.Bool("a")
@@ -237,6 +243,9 @@ func doList(ctx context.Context, cmd *cli.Command) error {
 }
 
 func doDone(ctx context.Context, cmd *cli.Command) error {
+	if !cmd.Args().Present() {
+		return cli.ShowSubcommandHelp(cmd)
+	}
 	cfg := cmd.Root().Metadata["config"].(*Config)
 	name := cmd.String("name")
 
@@ -257,7 +266,56 @@ func doDone(ctx context.Context, cmd *cli.Command) error {
 	return todolist.Save(ctx, cfg, name)
 }
 
+func doUndone(ctx context.Context, cmd *cli.Command) error {
+	if !cmd.Args().Present() {
+		return cli.ShowSubcommandHelp(cmd)
+	}
+	cfg := cmd.Root().Metadata["config"].(*Config)
+	name := cmd.String("name")
+
+	var todolist TodoList
+	err := todolist.Load(ctx, cfg, name)
+	if err != nil {
+		return err
+	}
+	for _, arg := range cmd.Args().Slice() {
+		for i := 0; i < len(todolist); i++ {
+			if todolist[i].ID != arg {
+				continue
+			}
+			todolist[i].Done = false
+		}
+	}
+
+	return todolist.Save(ctx, cfg, name)
+}
+
+func doEdit(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Len() != 1 {
+		return cli.ShowSubcommandHelp(cmd)
+	}
+	cfg := cmd.Root().Metadata["config"].(*Config)
+	name := cmd.String("name")
+
+	var todolist TodoList
+	err := todolist.Load(ctx, cfg, name)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(todolist); i++ {
+		if todolist[i].ID != cmd.Args().First() {
+			continue
+		}
+		todolist[i].Content = cmd.String("content")
+	}
+
+	return todolist.Save(ctx, cfg, name)
+}
+
 func doDelete(ctx context.Context, cmd *cli.Command) error {
+	if !cmd.Args().Present() {
+		return cli.ShowSubcommandHelp(cmd)
+	}
 	cfg := cmd.Root().Metadata["config"].(*Config)
 	name := cmd.String("name")
 
@@ -277,6 +335,9 @@ func doDelete(ctx context.Context, cmd *cli.Command) error {
 }
 
 func doVersion(ctx context.Context, cmd *cli.Command) error {
+	if cmd.Args().Present() {
+		return cli.ShowSubcommandHelp(cmd)
+	}
 	fmt.Println(version)
 	return nil
 }
@@ -329,6 +390,32 @@ var commands = []*cli.Command{
 			},
 		},
 		Action: doDone,
+	},
+	{
+		Name:      "undone",
+		Usage:     "undone todo",
+		UsageText: "nostr-todo undone [id...]",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "name",
+				Aliases: []string{"n"},
+				Value:   "",
+			},
+		},
+		Action: doUndone,
+	},
+	{
+		Name:      "edit",
+		Usage:     "edit todo",
+		UsageText: "nostr-todo edit [id]",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "name",
+				Aliases: []string{"n"},
+				Value:   "",
+			},
+		},
+		Action: doEdit,
 	},
 	{
 		Name:      "delete",
