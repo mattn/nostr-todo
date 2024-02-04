@@ -18,6 +18,8 @@ COMMANDS:
    list     list todos
    new      new todo
    done     done todo
+   undone   undone todo
+   edit     edit todo
    delete   delete todo
    version  show version
    help, h  Shows a list of commands or help for one command
