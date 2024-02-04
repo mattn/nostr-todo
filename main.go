@@ -24,7 +24,7 @@ import (
 
 const name = "nostr-todo"
 
-const version = "0.0.4"
+const version = "0.0.5"
 
 var revision = "HEAD"
 
