@@ -218,12 +218,18 @@ func doList(ctx context.Context, cmd *cli.Command) error {
 	cfg := cmd.Root().Metadata["config"].(*Config)
 	name := cmd.String("name")
 	showAll := cmd.Bool("a")
+	outputJSON := cmd.Bool("json")
 
 	var todolist TodoList
 	err := todolist.Load(ctx, cfg, name)
 	if err != nil {
 		return err
 	}
+
+	if outputJSON {
+		return json.NewEncoder(os.Stdout).Encode(todolist)
+	}
+
 	for _, todo := range todolist {
 		if todo.Done && !showAll {
 			continue
@@ -356,6 +362,10 @@ var commands = []*cli.Command{
 			&cli.BoolFlag{
 				Name:  "a",
 				Usage: "list all todos",
+			},
+			&cli.BoolFlag{
+				Name:  "json",
+				Usage: "output as JSON",
 			},
 		},
 		Action: doList,
