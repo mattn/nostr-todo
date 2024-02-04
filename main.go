@@ -28,6 +28,8 @@ const version = "0.0.2"
 
 var revision = "HEAD"
 
+var ErrNotFound = errors.New("todo list not found")
+
 type Config struct {
 	Relays     []string `json:"relays"`
 	PrivateKey string   `json:"privatekey"`
@@ -128,7 +130,7 @@ func (tl *TodoList) Load(ctx context.Context, cfg *Config, name string) error {
 	}
 	ev := pool.QuerySingle(ctx, cfg.Relays, filter)
 	if ev == nil {
-		return errors.New("todo list not found")
+		return ErrNotFound
 	}
 
 	return tl.UnmarshalJSON([]byte(ev.Content))
@@ -192,7 +194,7 @@ func doNew(ctx context.Context, cmd *cli.Command) error {
 
 	var todolist TodoList
 	err := todolist.Load(ctx, cfg, name)
-	if err != nil {
+	if err != nil && err != ErrNotFound {
 		return err
 	}
 	todolist = append(todolist, Todo{
@@ -305,7 +307,7 @@ var commands = []*cli.Command{
 			&cli.StringFlag{
 				Name:    "name",
 				Aliases: []string{"n"},
-				Value:   "default",
+				Value:   "",
 			},
 			&cli.StringFlag{
 				Name:     "content",
@@ -323,7 +325,7 @@ var commands = []*cli.Command{
 			&cli.StringFlag{
 				Name:    "name",
 				Aliases: []string{"n"},
-				Value:   "default",
+				Value:   "",
 			},
 		},
 		Action: doDone,
@@ -336,7 +338,7 @@ var commands = []*cli.Command{
 			&cli.StringFlag{
 				Name:    "name",
 				Aliases: []string{"n"},
-				Value:   "default",
+				Value:   "",
 			},
 		},
 		Action: doDelete,
